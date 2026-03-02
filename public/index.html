@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grievance Admin Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 30px; }
+        .filters { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .filters select { padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-right: 10px; }
+        .grievance-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .grievance-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
+        .badge { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .badge.pending { background: #fff3cd; color: #856404; }
+        .badge.resolved { background: #d4edda; color: #155724; }
+        .grievance-content { margin: 15px 0; }
+        .response-section { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        .meta { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Grievance Admin Dashboard</h1>
+        
+        <div class="filters">
+            <select id="statusFilter" onchange="filterGrievances()">
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="resolved">Resolved</option>
+            </select>
+            <select id="deptFilter" onchange="filterGrievances()">
+                <option value="all">All Departments</option>
+                <option value="Technical Support">Technical Support</option>
+                <option value="Billing">Billing</option>
+                <option value="Human Resources">Human Resources</option>
+                <option value="General Inquiry">General Inquiry</option>
+                <option value="Complaints">Complaints</option>
+            </select>
+        </div>
+
+        <div id="grievancesList"></div>
+    </div>
+
+    <script>
+        let allGrievances = [];
+
+        async function loadGrievances() {
+            const response = await fetch('/api/grievances');
+            allGrievances = await response.json();
+            filterGrievances();
+        }
+
+        function filterGrievances() {
+            const status = document.getElementById('statusFilter').value;
+            const dept = document.getElementById('deptFilter').value;
+            
+            let filtered = allGrievances.filter(g => {
+                return (status === 'all' || g.status === status) &&
+                       (dept === 'all' || g.department === dept);
+            });
+            
+            displayGrievances(filtered);
+        }
+
+        function displayGrievances(grievances) {
+            const container = document.getElementById('grievancesList');
+            
+            if (grievances.length === 0) {
+                container.innerHTML = '<p style="text-align:center;color:#666;">No grievances found</p>';
+                return;
+            }
+            
+            container.innerHTML = grievances.map(g => `
+                <div class="grievance-card">
+                    <div class="grievance-header">
+                        <div>
+                            <strong>Ticket #${g.id}</strong> - ${g.department}
+                            <span class="badge ${g.status}">${g.status.toUpperCase()}</span>
+                        </div>
+                        <div class="meta">${new Date(g.createdAt).toLocaleString()}</div>
+                    </div>
+                    <div class="grievance-content">
+                        <strong>Grievance:</strong>
+                        <p>${g.grievance}</p>
+                    </div>
+                    <div class="meta">User: ${g.userId}</div>
+                    ${g.status === 'pending' ? `
+                        <div class="response-section">
+                            <textarea id="response-${g.id}" placeholder="Type your response here..." rows="3"></textarea>
+                            <button onclick="respondToGrievance(${g.id})">Send Response</button>
+                        </div>
+                    ` : `
+                        <div class="response-section">
+                            <strong>Admin Response:</strong>
+                            <p>${g.response}</p>
+                            <div class="meta">Resolved: ${new Date(g.updatedAt).toLocaleString()}</div>
+                        </div>
+                    `}
+                </div>
+            `).join('');
+        }
+
+        async function respondToGrievance(id) {
+            const response = document.getElementById(`response-${id}`).value;
+            
+            if (!response.trim()) {
+                alert('Please enter a response');
+                return;
+            }
+            
+            try {
+                await fetch(`/api/respond/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ response })
+                });
+                
+                alert('Response sent successfully!');
+                loadGrievances();
+            } catch (error) {
+                alert('Error sending response: ' + error.message);
+            }
+        }
+
+        loadGrievances();
+        setInterval(loadGrievances, 10000); // Refresh every 10 seconds
+    </script>
+</body>
+</html>
