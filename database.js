@@ -19,9 +19,11 @@ class Database {
                 userId TEXT NOT NULL,
                 department TEXT NOT NULL,
                 grievance TEXT NOT NULL,
-                status TEXT DEFAULT 'pending',
+                status TEXT DEFAULT 'Pending',
                 response TEXT,
                 responseSent INTEGER DEFAULT 0,
+                isAnonymous INTEGER DEFAULT 0,
+                mediaUrls TEXT,
                 createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )
@@ -31,8 +33,8 @@ class Database {
     addGrievance(data) {
         return new Promise((resolve, reject) => {
             this.db.run(
-                'INSERT INTO grievances (userId, department, grievance, status) VALUES (?, ?, ?, ?)',
-                [data.userId, data.department, data.grievance, data.status],
+                'INSERT INTO grievances (userId, department, grievance, status, isAnonymous, mediaUrls) VALUES (?, ?, ?, ?, ?, ?)',
+                [data.userId, data.department, data.grievance, data.status, data.isAnonymous ? 1 : 0, data.mediaUrls || '[]'],
                 function(err) {
                     if (err) reject(err);
                     else resolve(this.lastID);
@@ -54,7 +56,20 @@ class Database {
         return new Promise((resolve, reject) => {
             this.db.run(
                 'UPDATE grievances SET response = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
-                [response, 'resolved', id],
+                [response, 'Resolved', id],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+    }
+
+    updateGrievanceStatus(id, status) {
+        return new Promise((resolve, reject) => {
+            this.db.run(
+                'UPDATE grievances SET status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+                [status, id],
                 (err) => {
                     if (err) reject(err);
                     else resolve();

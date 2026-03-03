@@ -1,6 +1,13 @@
 # WhatsApp Grievance Management Bot
 
-A WhatsApp bot that allows users to submit grievances by category, with an admin dashboard for managing and responding to them.
+A WhatsApp bot for college grievance management that allows users to submit grievances by category, with an admin dashboard for managing and responding to them.
+
+## Two Versions Available
+
+1. **bot.js** - Uses whatsapp-web.js (requires personal number + QR code)
+2. **bot-twilio.js** - Uses Twilio WhatsApp API (dedicated business number, no personal number needed)
+
+**For college/institutional use, we recommend bot-twilio.js** - See SETUP_TWILIO.md for details.
 
 ## Features
 

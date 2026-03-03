@@ -14,8 +14,15 @@
         .grievance-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .grievance-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
         .badge { padding: 5px 10px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-        .badge.pending { background: #fff3cd; color: #856404; }
-        .badge.resolved { background: #d4edda; color: #155724; }
+        .badge.Pending { background: #fff3cd; color: #856404; }
+        .badge.In.Progress { background: #cce5ff; color: #004085; }
+        .badge.Resolved { background: #d4edda; color: #155724; }
+        .badge.Closed { background: #d6d8db; color: #383d41; }
+        .media-preview { margin: 10px 0; }
+        .media-preview a { color: #007bff; text-decoration: none; padding: 5px 10px; background: #f0f0f0; border-radius: 4px; display: inline-block; }
+        .media-preview a:hover { background: #e0e0e0; }
+        .status-selector { margin-top: 10px; }
+        .status-selector select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-right: 10px; }
         .grievance-content { margin: 15px 0; }
         .response-section { margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
@@ -31,16 +38,17 @@
         <div class="filters">
             <select id="statusFilter" onchange="filterGrievances()">
                 <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="resolved">Resolved</option>
+                <option value="Pending">Pending</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
             </select>
             <select id="deptFilter" onchange="filterGrievances()">
-                <option value="all">All Departments</option>
-                <option value="Technical Support">Technical Support</option>
-                <option value="Billing">Billing</option>
-                <option value="Human Resources">Human Resources</option>
-                <option value="General Inquiry">General Inquiry</option>
-                <option value="Complaints">Complaints</option>
+                <option value="all">All Categories</option>
+                <option value="Academic">Academic</option>
+                <option value="Hostel">Hostel</option>
+                <option value="Faculty">Faculty</option>
+                <option value="Infrastructure">Infrastructure</option>
             </select>
         </div>
 
@@ -76,21 +84,53 @@
                 return;
             }
             
-            container.innerHTML = grievances.map(g => `
+            container.innerHTML = grievances.map(g => {
+                const mediaUrls = g.mediaUrls ? JSON.parse(g.mediaUrls) : [];
+                const mediaHtml = mediaUrls.map((media, idx) => {
+                    // Twilio media links - will prompt for auth when clicked
+                    const icon = media.type.startsWith('image/') ? '📷' : 
+                                media.type.startsWith('video/') ? '🎥' : 
+                                media.type.startsWith('audio/') ? '🎵' : '📎';
+                    return `<div class="media-preview">
+                        <a href="${media.url}" target="_blank" rel="noopener noreferrer">
+                            ${icon} Attachment ${idx + 1} (${media.type.split('/')[0]})
+                        </a>
+                        <small style="display:block;color:#666;margin-top:3px;">
+                            Note: Twilio credentials required to view
+                        </small>
+                    </div>`;
+                }).join('');
+                
+                const badgeClass = g.status.replace(' ', '.');
+                
+                return `
                 <div class="grievance-card">
                     <div class="grievance-header">
                         <div>
-                            <strong>Ticket #${g.id}</strong> - ${g.department}
-                            <span class="badge ${g.status}">${g.status.toUpperCase()}</span>
+                            <strong>Tracking ID: ${g.id}</strong> - ${g.department}
+                            <span class="badge ${badgeClass}">${g.status.toUpperCase()}</span>
+                            ${g.isAnonymous ? '<span class="badge" style="background:#e7e7e7;color:#333;">ANONYMOUS</span>' : ''}
                         </div>
                         <div class="meta">${new Date(g.createdAt).toLocaleString()}</div>
                     </div>
                     <div class="grievance-content">
                         <strong>Grievance:</strong>
                         <p>${g.grievance}</p>
+                        ${mediaHtml}
                     </div>
                     <div class="meta">User: ${g.userId}</div>
-                    ${g.status === 'pending' ? `
+                    
+                    <div class="status-selector">
+                        <strong>Change Status:</strong>
+                        <select id="status-${g.id}" onchange="updateStatus(${g.id})">
+                            <option value="Pending" ${g.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="In Progress" ${g.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="Resolved" ${g.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+                            <option value="Closed" ${g.status === 'Closed' ? 'selected' : ''}>Closed</option>
+                        </select>
+                    </div>
+                    
+                    ${g.status !== 'Resolved' && g.status !== 'Closed' ? `
                         <div class="response-section">
                             <textarea id="response-${g.id}" placeholder="Type your response here..." rows="3"></textarea>
                             <button onclick="respondToGrievance(${g.id})">Send Response</button>
@@ -98,12 +138,12 @@
                     ` : `
                         <div class="response-section">
                             <strong>Admin Response:</strong>
-                            <p>${g.response}</p>
-                            <div class="meta">Resolved: ${new Date(g.updatedAt).toLocaleString()}</div>
+                            <p>${g.response || 'No response yet'}</p>
+                            <div class="meta">Updated: ${new Date(g.updatedAt).toLocaleString()}</div>
                         </div>
                     `}
                 </div>
-            `).join('');
+            `}).join('');
         }
 
         async function respondToGrievance(id) {
@@ -125,6 +165,22 @@
                 loadGrievances();
             } catch (error) {
                 alert('Error sending response: ' + error.message);
+            }
+        }
+
+        async function updateStatus(id) {
+            const status = document.getElementById(`status-${id}`).value;
+            
+            try {
+                await fetch(`/api/status/${id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+                
+                loadGrievances();
+            } catch (error) {
+                alert('Error updating status: ' + error.message);
             }
         }
 
