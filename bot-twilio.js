@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const twilio = require('twilio');
-const Database = require('./database');
+const Database = require('./database-supabase'); // Using Supabase now!
 
 const app = express();
 const db = new Database();
@@ -43,10 +43,10 @@ app.post('/webhook', async (req, res) => {
         if (grievance) {
             responseMessage = 
                 `📋 Grievance Status\n\n` +
-                `Tracking ID: ${grievance.id}\n` +
-                `Category: ${grievance.department}\n` +
+                `Tracking ID: ${grievance.grievance_id}\n` +
+                `Category: ${grievance.category}\n` +
                 `Status: ${grievance.status}\n` +
-                `Submitted: ${new Date(grievance.createdAt).toLocaleString()}\n\n`;
+                `Submitted: ${new Date(grievance.created_at).toLocaleString()}\n\n`;
             
             if (grievance.response) {
                 responseMessage += `Admin Response:\n${grievance.response}\n\n`;

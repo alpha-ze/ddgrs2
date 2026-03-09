@@ -9,6 +9,7 @@
     "dashboard": "node dashboard.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
     "body-parser": "^1.20.2",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
